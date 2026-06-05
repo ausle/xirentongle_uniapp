@@ -1,0 +1,28 @@
+export const T = {
+  bg: '#FFFDF7',
+  surface: '#FFFFFF',
+  surface2: '#FFF8F1',
+  border: '#EDE4DA',
+  borderLight: '#F5EDE4',
+  text1: '#3D2C2C',
+  text2: '#6B5757',
+  text3: '#9B8585',
+  text4: '#C4AFAF',
+  accent: '#E8866A',
+  accentPink: '#E8A5B4',
+  accentLight: '#FFF0EB',
+  accentGrad: 'linear-gradient(135deg, #E8866A 0%, #E8A5B4 100%)',
+  sage: '#6FAE69',
+  sageBg: '#EFF6EE',
+  lavender: '#9B8FD4',
+  lavenderBg: '#F3EFFA',
+  peach: '#D4956A',
+  peachBg: '#FFF7ED',
+  pink: '#E8A5B4',
+  pinkBg: '#FFF0F4',
+  gold: '#D4A843',
+  goldBg: '#FFFBF0',
+  star: '#F5A623',
+} as const;
+
+export const SERIF = "'Noto Serif SC', Georgia, serif";

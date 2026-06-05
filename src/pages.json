@@ -1,0 +1,127 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationStyle": "custom",
+        "backgroundColor": "#FFFDF7"
+      }
+    },
+    {
+      "path": "pages/projects/index",
+      "style": {
+        "navigationStyle": "custom",
+        "backgroundColor": "#FFFDF7"
+      }
+    },
+    {
+      "path": "pages/entertainment/index",
+      "style": {
+        "navigationStyle": "custom",
+        "backgroundColor": "#FFFDF7"
+      }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationStyle": "custom",
+        "backgroundColor": "#FFFDF7"
+      }
+    },
+    {
+      "path": "pages/webview/index",
+      "style": {
+        "navigationBarTitleText": "GitHub",
+        "navigationBarBackgroundColor": "#FFFDF7",
+        "navigationBarTextStyle": "black",
+        "backgroundColor": "#FFFDF7"
+      }
+    },
+    {
+      "path": "pages/article/detail",
+      "style": {
+        "navigationStyle": "custom",
+        "backgroundColor": "#FFFDF7"
+      }
+    },
+    {
+      "path": "pages/article/author",
+      "style": {
+        "navigationStyle": "custom",
+        "backgroundColor": "#FFFDF7"
+      }
+    },
+    {
+      "path": "pages/project/detail",
+      "style": {
+        "navigationStyle": "custom",
+        "backgroundColor": "#FFFDF7"
+      }
+    },
+    {
+      "path": "pages/entertainment/detail",
+      "style": {
+        "navigationStyle": "custom",
+        "backgroundColor": "#FFFDF7"
+      }
+    },
+    {
+      "path": "pages/profile/settings",
+      "style": {
+        "navigationStyle": "custom",
+        "backgroundColor": "#FFFDF7"
+      }
+    },
+    {
+      "path": "pages/profile/feature",
+      "style": {
+        "navigationStyle": "custom",
+        "backgroundColor": "#FFFDF7"
+      }
+    },
+    {
+      "path": "pages/profile/login",
+      "style": {
+        "navigationStyle": "custom",
+        "backgroundColor": "#FFFDF7"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarBackgroundColor": "#FFFDF7",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#FFFDF7"
+  },
+  "tabBar": {
+    "color": "#9B8585",
+    "selectedColor": "#E8866A",
+    "backgroundColor": "#FFFDF7",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "文章",
+        "iconPath": "static/tabbar/articles.png",
+        "selectedIconPath": "static/tabbar/articles-active.png"
+      },
+      {
+        "pagePath": "pages/projects/index",
+        "text": "项目",
+        "iconPath": "static/tabbar/projects.png",
+        "selectedIconPath": "static/tabbar/projects-active.png"
+      },
+      {
+        "pagePath": "pages/entertainment/index",
+        "text": "娱乐",
+        "iconPath": "static/tabbar/entertainment.png",
+        "selectedIconPath": "static/tabbar/entertainment-active.png"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的",
+        "iconPath": "static/tabbar/profile.png",
+        "selectedIconPath": "static/tabbar/profile-active.png"
+      }
+    ]
+  }
+}
