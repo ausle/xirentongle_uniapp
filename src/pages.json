@@ -45,6 +45,13 @@
       }
     },
     {
+      "path": "pages/article/search",
+      "style": {
+        "navigationStyle": "custom",
+        "backgroundColor": "#FFFDF7"
+      }
+    },
+    {
       "path": "pages/article/author",
       "style": {
         "navigationStyle": "custom",

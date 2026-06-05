@@ -135,7 +135,14 @@ import { articles, type Article } from '../../mock/data'
 import { fmtCompact } from '../../utils/author-profile'
 import { T } from '../../utils/theme'
 
-const article = ref<Article>(articles[0])
+type DetailArticle = Pick<
+  Article,
+  'id' | 'title' | 'cover' | 'author' | 'authorAvatar' | 'date' | 'readTime' | 'views' | 'likes' | 'content'
+>
+
+const ARTICLE_DETAIL_CACHE_PREFIX = 'chance_article_detail_'
+
+const article = ref<DetailArticle>(articles[0])
 const articleLiked = ref(false)
 const articleSaved = ref(false)
 const articleAuthorFollowed = ref(false)
@@ -161,7 +168,15 @@ const themeVars = computed(() => ({
 }))
 
 onLoad((options) => {
-  const matched = articles.find((item) => item.id === options?.id)
+  const articleId = typeof options?.id === 'string' ? options.id : ''
+  const cachedArticle = articleId ? uni.getStorageSync(`${ARTICLE_DETAIL_CACHE_PREFIX}${articleId}`) : null
+  if (cachedArticle && typeof cachedArticle === 'object' && typeof cachedArticle.title === 'string') {
+    article.value = cachedArticle as DetailArticle
+    articleLikes.value = article.value.likes
+    return
+  }
+
+  const matched = articles.find((item) => item.id === articleId)
   if (matched) {
     article.value = matched
     articleLikes.value = matched.likes

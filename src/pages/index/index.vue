@@ -25,12 +25,13 @@
 
     <scroll-view scroll-y class="scroll-page">
       <view class="home-head">
-        <text class="eyebrow">好好读书 🌸</text>
+        <text class="eyebrow">READING NOTE</text>
         <text class="page-title serif">今日精选</text>
       </view>
 
       <view class="page-pad">
         <swiper
+          v-if="hotArticles.length"
           class="hero-swiper"
           circular
           autoplay
@@ -41,19 +42,19 @@
           indicator-active-color="#FFFFFF"
         >
           <swiper-item v-for="article in hotArticles" :key="article.id">
-            <view class="carousel-card" @tap="openArticle(article.id)">
+            <view class="carousel-card" @tap="openArticle(article)">
               <image class="fill-img" :src="article.cover" mode="aspectFill" />
               <view class="dark-grad" />
-              <view class="hot-badge">🔥 热门精选</view>
+              <view class="hot-badge">热门文章</view>
               <view class="carousel-copy">
                 <view
                   class="cat-badge"
                   :style="{
-                    color: categoryMap[article.categoryId]?.accent,
-                    background: categoryMap[article.categoryId]?.fromColor,
+                    color: article.accentColor,
+                    background: article.badgeBackground,
                   }"
                 >
-                  {{ categoryMap[article.categoryId]?.icon }} {{ categoryMap[article.categoryId]?.name }}
+                  {{ article.categoryName || '未分类' }}
                 </view>
                 <text class="carousel-title serif">{{ article.title }}</text>
                 <view class="carousel-meta">
@@ -71,31 +72,23 @@
 
         <view class="section-row">
           <text class="section-title serif">内容分类</text>
-          <text class="section-count">{{ filteredArticles.length }} 篇文章</text>
+          <text class="section-count">{{ articleTotalLabel }}</text>
         </view>
 
-        <view class="search-box" :class="{ focused: articleSearch }">
-          <AppIcon name="search" :size="14" :color="articleSearch ? T.accent : T.text4" />
-          <input
-            v-model="articleSearch"
-            class="search-input"
-            placeholder="搜索文章、作者.."
-            placeholder-class="placeholder"
-          />
-          <button v-if="articleSearch" class="clear-btn" @tap="articleSearch = ''">
-            <AppIcon name="x" :size="14" :color="T.text4" />
-          </button>
-        </view>
+        <button class="search-box search-trigger" @tap="openArticleSearch">
+          <AppIcon name="search" :size="14" :color="T.text4" />
+          <text class="search-trigger__text">搜索文章、作者</text>
+        </button>
 
         <view class="cat-grid">
           <button
-            v-for="category in articleCategories"
-            :key="category.id"
+            v-for="category in displayCategories"
+            :key="category.key"
             class="cat-pill"
-            :class="{ active: activeArticleCategory === category.id }"
-            @tap="activeArticleCategory = category.id"
+            :class="{ active: activeArticleCategoryKey === category.key }"
+            @tap="handleCategorySelect(category.key)"
           >
-            {{ category.icon }} {{ category.name }}
+            {{ category.name }}
           </button>
         </view>
 
@@ -105,23 +98,32 @@
             :key="option.key"
             class="sort-pill"
             :class="{ active: activeArticleSort === option.key }"
-            @tap="activeArticleSort = option.key"
+            @tap="handleSortSelect(option.key)"
           >
-            {{ option.emoji }} {{ option.label }}
+            {{ option.label }}
           </button>
         </view>
 
-        <view v-if="filteredArticles.length === 0" class="empty">
-          <text class="empty-emoji">🌸</text>
-          <text class="empty-title">没有找到相关文章</text>
-          <text class="empty-desc">试试换个关键词？</text>
+        <view v-if="articleLoading && !displayArticles.length" class="empty">
+          <text class="empty-title">加载文章中</text>
+          <text class="empty-desc">正在从后端读取分类文章...</text>
+        </view>
+
+        <view v-else-if="articleError && !displayArticles.length" class="empty">
+          <text class="empty-title">文章加载失败</text>
+          <text class="empty-desc">{{ articleError }}</text>
+        </view>
+
+        <view v-else-if="displayArticles.length === 0" class="empty">
+          <text class="empty-title">当前分类暂无文章</text>
+          <text class="empty-desc">可以切换分类或稍后再试。</text>
         </view>
 
         <view
-          v-for="article in filteredArticles"
+          v-for="article in displayArticles"
           :key="article.id"
           class="article-card"
-          @tap="openArticle(article.id)"
+          @tap="openArticle(article)"
         >
           <view class="article-cover">
             <image class="fill-img" :src="article.cover" mode="aspectFill" />
@@ -129,11 +131,11 @@
             <view
               class="cat-badge card-cat"
               :style="{
-                color: categoryMap[article.categoryId]?.accent,
-                background: categoryMap[article.categoryId]?.fromColor,
+                color: article.accentColor,
+                background: article.badgeBackground,
               }"
             >
-              {{ categoryMap[article.categoryId]?.icon }} {{ categoryMap[article.categoryId]?.name }}
+              {{ article.categoryName || '未分类' }}
             </view>
             <view class="views-badge">
               <AppIcon name="eye" :size="11" :color="T.text3" />
@@ -152,12 +154,20 @@
                 <AppIcon name="clock" :size="10" :color="T.text4" />
                 <text>{{ article.readTime }} min</text>
               </view>
+              <view class="meta-inline">
+                <AppIcon name="calendar" :size="10" :color="T.text4" />
+                <text>{{ article.date }}</text>
+              </view>
               <view class="like-meta">
                 <AppIcon name="heart" :size="13" :color="T.accentPink" filled />
                 <text>{{ fmtCompact(article.likes) }}</text>
               </view>
             </view>
           </view>
+        </view>
+
+        <view v-if="articleError && displayArticles.length" class="footer-note">
+          <text>{{ articleError }}</text>
         </view>
 
         <view class="bottom-gap" />
@@ -168,26 +178,71 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import AppIcon from '../../components/AppIcon.vue'
+import {
+  fetchArticlesByCategory,
+  fetchIndexData,
+  type ArticleCategoryDto,
+  type ArticleItemDto,
+} from '../../api/index'
 import { fmtCompact } from '../../utils/author-profile'
 import { T } from '../../utils/theme'
-import { articles, categories } from '../../mock/data'
+import { categories as mockCategories } from '../../mock/data'
 
 type SortBy = 'newest' | 'hottest' | 'liked'
 
+interface DisplayCategory {
+  key: string
+  name: string
+}
+
+interface HomeArticleView {
+  id: string
+  title: string
+  excerpt: string
+  cover: string
+  author: string
+  authorAvatar: string
+  date: string
+  readTime: number
+  views: number
+  likes: number
+  categoryName: string
+  accentColor: string
+  badgeBackground: string
+  content: string[]
+}
+
+const PAGE_SIZE = 20
+const ARTICLE_DETAIL_CACHE_PREFIX = 'chance_article_detail_'
+const FALLBACK_COVER = 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=800&auto=format'
+const FALLBACK_AVATAR = 'https://images.unsplash.com/photo-1629740936456-4b990c27e503?w=100&auto=format'
+
 const clock = ref('09:41')
-const articleSearch = ref('')
-const activeArticleCategory = ref('all')
+const activeArticleCategoryKey = ref('all')
 const activeArticleSort = ref<SortBy>('newest')
+const remoteArticleCategories = ref<ArticleCategoryDto[]>([])
+const displayArticles = ref<HomeArticleView[]>([])
+const articleTotal = ref(0)
+const articleLoading = ref(false)
+const articleError = ref('')
+const categoryLoading = ref(false)
+
+let clockTimer: ReturnType<typeof setInterval> | null = null
+let articleRequestId = 0
 
 const articleSortOptions = [
-  { key: 'newest' as const, label: '最新', emoji: '🕐' },
-  { key: 'hottest' as const, label: '最热', emoji: '🔥' },
-  { key: 'liked' as const, label: '点赞', emoji: '❤️' },
+  { key: 'newest' as const, label: '最新' },
+  { key: 'hottest' as const, label: '最热' },
+  { key: 'liked' as const, label: '点赞高' },
 ]
 
-const categoryMap = Object.fromEntries(categories.map((category) => [category.id, category]))
-const articleCategories = [{ id: 'all', name: '全部', icon: '✨' }, ...categories.map(({ id, name, icon }) => ({ id, name, icon }))]
+const mockCategoryPalette = mockCategories.map((category) => ({
+  normalizedName: normalizeCategoryName(category.name),
+  accentColor: category.accent,
+  badgeBackground: category.fromColor,
+}))
 
 const themeVars = computed(() => ({
   '--bg': T.bg,
@@ -197,43 +252,297 @@ const themeVars = computed(() => ({
   '--text3': T.text3,
   '--text4': T.text4,
   '--accent': T.accent,
+  '--accent-light': T.accentLight,
   '--accent-pink': T.accentPink,
 }))
 
-const hotArticles = computed(() => [...articles].sort((a, b) => b.likes - a.likes).slice(0, 5))
+const displayCategories = computed<DisplayCategory[]>(() => {
+  if (remoteArticleCategories.value.length > 0) {
+    return [
+      { key: 'all', name: '全部' },
+      ...remoteArticleCategories.value.filter((category) => !isTotalCategoryName(category.category)).map((category) => ({
+        key: `category:${category.categoryId}`,
+        name: category.category,
+      })),
+    ]
+  }
 
-const filteredArticles = computed(() => {
-  const query = articleSearch.value.trim()
-  return [...articles]
-    .filter((article) => activeArticleCategory.value === 'all' || article.categoryId === activeArticleCategory.value)
-    .filter((article) => !query || article.title.includes(query) || article.author.includes(query) || article.excerpt.includes(query))
-    .sort((left, right) => {
-      if (activeArticleSort.value === 'newest') return right.date.localeCompare(left.date)
-      if (activeArticleSort.value === 'hottest') return right.views - left.views
-      return right.likes - left.likes
-    })
+  return [{ key: 'all', name: '全部' }]
 })
 
-let clockTimer: ReturnType<typeof setInterval> | null = null
+const activeCategoryName = computed(() => {
+  if (activeArticleCategoryKey.value === 'all') {
+    return ''
+  }
+
+  const matchedCategory = displayCategories.value.find((category) => category.key === activeArticleCategoryKey.value)
+  return matchedCategory?.name ?? ''
+})
+
+const hotArticles = computed(() => [...displayArticles.value].sort((left, right) => right.likes - left.likes).slice(0, 5))
+
+const articleTotalLabel = computed(() => `${articleTotal.value || displayArticles.value.length} 篇文章`)
+
+function normalizeCategoryName(value?: string) {
+  return (value || '').replace(/\s+/g, '').toLowerCase()
+}
+
+function isTotalCategoryName(value?: string) {
+  const normalizedValue = normalizeCategoryName(value)
+  return normalizedValue === '' || normalizedValue === 'all' || normalizedValue === '鍏ㄩ儴'
+}
+
+function resolveCategoryPalette(categoryName?: string) {
+  const normalizedName = normalizeCategoryName(categoryName)
+  const matchedPalette = mockCategoryPalette.find(
+    (category) =>
+      category.normalizedName === normalizedName ||
+      category.normalizedName.includes(normalizedName) ||
+      normalizedName.includes(category.normalizedName),
+  )
+
+  return matchedPalette ?? {
+    accentColor: T.accent,
+    badgeBackground: T.accentLight,
+  }
+}
+
+function splitArticleContent(content?: string, summary?: string) {
+  const normalizedContent = (content || '')
+    .split(/\n+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+
+  if (normalizedContent.length > 0) {
+    return normalizedContent
+  }
+
+  const normalizedSummary = (summary || '').trim()
+  if (normalizedSummary) {
+    return [normalizedSummary]
+  }
+
+  return ['暂无内容']
+}
+
+function estimateReadTime(content?: string, summary?: string) {
+  const source = `${content || ''}${summary || ''}`.trim()
+  if (!source) {
+    return 1
+  }
+
+  return Math.max(1, Math.round(source.length / 320))
+}
+
+function formatArticleDate(timestamp?: number) {
+  if (!timestamp) {
+    return '刚刚'
+  }
+
+  const date = new Date(timestamp)
+  if (Number.isNaN(date.getTime())) {
+    return '刚刚'
+  }
+
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${month}-${day}`
+}
+
+function mapArticleDtoToView(article: ArticleItemDto): HomeArticleView {
+  const categoryName = article.category?.category || '未分类'
+  const palette = resolveCategoryPalette(categoryName)
+  const content = splitArticleContent(article.content, article.summary)
+
+  return {
+    id: String(article.articleId),
+    title: article.title?.trim() || '未命名文章',
+    excerpt: article.summary?.trim() || content[0] || '暂无摘要',
+    cover: article.cover?.trim() || FALLBACK_COVER,
+    author: article.authorName?.trim() || '佚名',
+    authorAvatar: article.authorAvatar?.trim() || FALLBACK_AVATAR,
+    date: formatArticleDate(article.createTime || article.lastUpdateTime),
+    readTime: estimateReadTime(article.content, article.summary),
+    views: article.count?.readCount ?? 0,
+    likes: article.count?.praiseCount ?? 0,
+    categoryName,
+    accentColor: palette.accentColor,
+    badgeBackground: palette.badgeBackground,
+    content,
+  }
+}
+
+function cacheArticleDetail(article: HomeArticleView) {
+  uni.setStorageSync(`${ARTICLE_DETAIL_CACHE_PREFIX}${article.id}`, article)
+}
+
+function restoreCachedCategories() {
+  const cachedCategories = uni.getStorageSync('chance_article_categories')
+  const cachedCurrentCategoryId = uni.getStorageSync('chance_article_current_category_id')
+
+  if (Array.isArray(cachedCategories)) {
+    remoteArticleCategories.value = cachedCategories.filter(
+      (category): category is ArticleCategoryDto =>
+        typeof category?.categoryId === 'number' && typeof category?.category === 'string',
+    )
+  }
+
+  if (typeof cachedCurrentCategoryId === 'number' && cachedCurrentCategoryId > 0) {
+    activeArticleCategoryKey.value = `category:${cachedCurrentCategoryId}`
+  }
+}
+
+function syncActiveCategoryFromIndex(data?: {
+  categories?: ArticleCategoryDto[]
+  currentCategory?: string
+  categoryId?: number
+}) {
+  const selectedCategory =
+    data?.categories?.find((category) => category.selected) ??
+    remoteArticleCategories.value.find((category) => category.selected)
+
+  if (selectedCategory) {
+    activeArticleCategoryKey.value = `category:${selectedCategory.categoryId}`
+    return
+  }
+
+  if (typeof data?.categoryId === 'number' && data.categoryId > 0) {
+    activeArticleCategoryKey.value = `category:${data.categoryId}`
+    return
+  }
+
+  if (typeof data?.currentCategory === 'string' && data.currentCategory.trim()) {
+    const matchedCategory = remoteArticleCategories.value.find((category) => category.category === data.currentCategory)
+    if (matchedCategory) {
+      activeArticleCategoryKey.value = `category:${matchedCategory.categoryId}`
+      return
+    }
+  }
+
+  if (!displayCategories.value.some((category) => category.key === activeArticleCategoryKey.value)) {
+    activeArticleCategoryKey.value = 'all'
+  }
+}
+
+async function loadCategories() {
+  if (categoryLoading.value) {
+    return
+  }
+
+  categoryLoading.value = true
+  try {
+    const data = await fetchIndexData()
+    remoteArticleCategories.value = data.categories ?? []
+    uni.setStorageSync('chance_article_categories', remoteArticleCategories.value)
+    uni.setStorageSync('chance_article_current_category', data.currentCategory ?? '')
+    uni.setStorageSync('chance_article_current_category_id', data.categoryId ?? 0)
+    syncActiveCategoryFromIndex(data)
+  } catch (error) {
+    console.error('Failed to load article categories on home page', error)
+    syncActiveCategoryFromIndex()
+  } finally {
+    categoryLoading.value = false
+  }
+}
+
+async function loadArticles() {
+  const requestId = ++articleRequestId
+  articleLoading.value = true
+  articleError.value = ''
+
+  try {
+    const response = await fetchArticlesByCategory({
+      category: activeCategoryName.value || undefined,
+      page: 1,
+      size: PAGE_SIZE,
+      sort: activeArticleSort.value === 'newest' ? 'latest' : 'hot',
+    })
+
+    if (requestId !== articleRequestId) {
+      return
+    }
+
+    const mappedArticles = (response.articles?.list ?? []).map(mapArticleDtoToView)
+
+    if (activeArticleSort.value === 'liked') {
+      mappedArticles.sort((left, right) => right.likes - left.likes)
+    }
+
+    mappedArticles.forEach(cacheArticleDetail)
+    displayArticles.value = mappedArticles
+    articleTotal.value = response.total ?? mappedArticles.length
+  } catch (error) {
+    console.error('Failed to load category articles on home page', error)
+    if (requestId !== articleRequestId) {
+      return
+    }
+
+    displayArticles.value = []
+    articleTotal.value = 0
+    articleError.value = error instanceof Error ? error.message : '请求文章接口失败'
+  } finally {
+    if (requestId === articleRequestId) {
+      articleLoading.value = false
+    }
+  }
+}
+
+async function refreshHomePage() {
+  await loadCategories()
+  await loadArticles()
+}
 
 function syncClock() {
   const now = new Date()
   clock.value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
 }
 
-function openArticle(id: string) {
+async function handleCategorySelect(categoryKey: string) {
+  if (activeArticleCategoryKey.value === categoryKey) {
+    return
+  }
+
+  activeArticleCategoryKey.value = categoryKey
+  await loadArticles()
+}
+
+async function handleSortSelect(sortKey: SortBy) {
+  if (activeArticleSort.value === sortKey) {
+    return
+  }
+
+  activeArticleSort.value = sortKey
+  await loadArticles()
+}
+
+function openArticle(article: HomeArticleView) {
+  cacheArticleDetail(article)
   uni.navigateTo({
-    url: `/pages/article/detail?id=${encodeURIComponent(id)}`,
+    url: `/pages/article/detail?id=${encodeURIComponent(article.id)}`,
+  })
+}
+
+function openArticleSearch() {
+  uni.navigateTo({
+    url: '/pages/article/search',
   })
 }
 
 onMounted(() => {
+  restoreCachedCategories()
+  syncActiveCategoryFromIndex()
   syncClock()
   clockTimer = setInterval(syncClock, 30000)
 })
 
 onUnmounted(() => {
-  if (clockTimer) clearInterval(clockTimer)
+  if (clockTimer) {
+    clearInterval(clockTimer)
+  }
+})
+
+onShow(() => {
+  void refreshHomePage()
 })
 </script>
 
@@ -393,10 +702,6 @@ onUnmounted(() => {
 .card-grad {
   position: absolute;
   inset: 0;
-}
-
-.dark-grad,
-.card-grad {
   background: linear-gradient(to top, rgba(61, 44, 44, 0.8) 0%, rgba(61, 44, 44, 0.15) 55%, transparent 100%);
 }
 
@@ -499,28 +804,14 @@ onUnmounted(() => {
   box-shadow: 0 2px 16px rgba(180, 120, 100, 0.07), 0 0 0 1px #ede4da;
 }
 
-.search-box.focused {
-  border-color: rgba(232, 134, 106, 0.25);
-  box-shadow: 0 2px 16px rgba(180, 120, 100, 0.07), 0 0 0 1px rgba(232, 134, 106, 0.2);
+.search-trigger {
+  justify-content: flex-start;
+  width: 100%;
 }
 
-.search-input {
-  flex: 1;
-  height: 38px;
-  color: var(--text1);
-  font-size: 13px;
-}
-
-.placeholder {
+.search-trigger__text {
   color: var(--text4);
-}
-
-.clear-btn {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: 13px;
 }
 
 .cat-grid {
@@ -575,13 +866,10 @@ onUnmounted(() => {
   text-align: center;
 }
 
-.empty-emoji,
 .empty-title,
 .empty-desc {
   display: block;
 }
-
-.empty-emoji { font-size: 38px; }
 
 .empty-title {
   color: var(--text2);
@@ -594,6 +882,7 @@ onUnmounted(() => {
   color: var(--text4);
   font-size: 12px;
   margin-top: 4px;
+  line-height: 1.6;
 }
 
 .article-card {
@@ -647,6 +936,7 @@ onUnmounted(() => {
   color: var(--text3);
   font-size: 11px;
   margin-top: 12px;
+  flex-wrap: wrap;
 }
 
 .avatar-xs {
@@ -667,6 +957,13 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.footer-note {
+  margin-top: 4px;
+  text-align: center;
+  color: var(--text4);
+  font-size: 12px;
 }
 
 .bottom-gap {
