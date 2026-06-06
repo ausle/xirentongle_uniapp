@@ -88,6 +88,7 @@ import {
 const nickname = ref(getStoredNickname())
 const nicknameDraft = ref(nickname.value)
 const editingNickname = ref(false)
+const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0
 
 const themeVars = computed(() => ({
   '--bg': T.bg,
@@ -96,6 +97,7 @@ const themeVars = computed(() => ({
   '--text1': T.text1,
   '--text3': T.text3,
   '--text4': T.text4,
+  '--safe-top': `${statusBarHeight}px`,
 }))
 
 function goBack() {
@@ -133,6 +135,7 @@ function logout() {
   display: flex;
   align-items: center;
   padding: 0 16px;
+  padding-top: var(--safe-top);
   height: 44px;
   background: #fff;
   border-bottom: 1px solid var(--border);
@@ -158,7 +161,7 @@ function logout() {
 }
 
 .scroll-page {
-  height: calc(100vh - 44px);
+  height: calc(100vh - 44px - var(--safe-top));
 }
 
 .settings-body {

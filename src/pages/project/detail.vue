@@ -108,6 +108,7 @@ import { projects, type Project } from '../../mock/data'
 import { T } from '../../utils/theme'
 
 const project = ref<Project>(projects[0])
+const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0
 
 const themeVars = computed(() => ({
   '--bg': T.bg,
@@ -122,6 +123,7 @@ const themeVars = computed(() => ({
   '--accent': T.accent,
   '--accent-light': T.accentLight,
   '--accent-grad': T.accentGrad,
+  '--safe-top': `${statusBarHeight}px`,
 }))
 
 onLoad((options) => {
@@ -150,6 +152,7 @@ function openWebview(url: string) {
   display: flex;
   align-items: center;
   padding: 0 16px;
+  padding-top: var(--safe-top);
   height: 44px;
   background: #fff;
   border-bottom: 1px solid var(--border);
@@ -181,7 +184,7 @@ function openWebview(url: string) {
 }
 
 .scroll-page {
-  height: calc(100vh - 44px);
+  height: calc(100vh - 44px - var(--safe-top));
 }
 
 .project-detail-cover {

@@ -44,6 +44,7 @@ import { entertainmentItems, type EntertainmentItem } from '../../mock/entertain
 import { T } from '../../utils/theme'
 
 const item = ref<EntertainmentItem>(entertainmentItems[0])
+const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0
 
 const themeVars = computed(() => ({
   '--bg': T.bg,
@@ -51,6 +52,7 @@ const themeVars = computed(() => ({
   '--border': T.border,
   '--text1': T.text1,
   '--text3': T.text3,
+  '--safe-top': `${statusBarHeight}px`,
 }))
 
 onLoad((options) => {
@@ -73,6 +75,7 @@ function goBack() {
   display: flex;
   align-items: center;
   padding: 0 16px;
+  padding-top: var(--safe-top);
   height: 44px;
   background: #fff;
   border-bottom: 1px solid var(--border);

@@ -1,5 +1,5 @@
 ﻿<template>
-  <view class="author-overlay">
+  <view class="author-overlay" :style="{ '--author-safe-top': `${statusBarHeight}px` }">
     <button class="author-back" @tap="$emit('back')">
       <AppIcon name="arrow-left" :size="18" :color="T.text2" />
     </button>
@@ -165,6 +165,8 @@ const authorTabs = [
   { key: 'following' as const, label: '关注', emoji: '👥' },
   { key: 'favorites' as const, label: '收藏', emoji: '⭐' },
 ]
+
+const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0
 </script>
 
 <style scoped>
@@ -177,7 +179,7 @@ const authorTabs = [
 
 .author-back {
   position: absolute;
-  top: 12px;
+  top: calc(var(--author-safe-top) + 12px);
   left: 16px;
   z-index: 20;
   width: 36px;
@@ -196,7 +198,7 @@ const authorTabs = [
 }
 
 .author-hero {
-  padding: 52px 20px 20px;
+  padding: calc(var(--author-safe-top) + 52px) 20px 20px;
   background: linear-gradient(135deg, #ffe4d4 0%, #ffdce8 60%, #eee0ff 100%);
 }
 

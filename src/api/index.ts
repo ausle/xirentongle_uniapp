@@ -60,6 +60,10 @@ export interface CategoryArticleListResponse {
   total?: number
 }
 
+export interface ArticleDetailResponse {
+  article?: ArticleItemDto | null
+}
+
 const FALLBACK_API_BASE_URL = 'http://127.0.0.1:8080'
 
 function trimTrailingSlash(value: string) {
@@ -144,4 +148,9 @@ export function fetchArticlesByCategory(params?: {
   if (params?.sort) requestParams.sort = params.sort
 
   return request<CategoryArticleListResponse>('/article/category', requestParams)
+}
+
+export async function fetchArticleDetail(articleId: string | number) {
+  const normalizedId = String(articleId).trim()
+  return request<ArticleDetailResponse>(`/article/detail/${normalizedId}`)
 }

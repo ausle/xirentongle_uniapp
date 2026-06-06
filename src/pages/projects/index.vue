@@ -394,12 +394,12 @@ onShow(async () => {
 .eyebrow { display: block; color: var(--text4); font-size: 11px; letter-spacing: 0.06em; margin-bottom: 2px; }
 .page-title { color: var(--text1); font-size: 26px; font-weight: 900; }
 .scroll-page { height: calc(100vh - 86px); }
-.project-search-zone { background: #fff; padding: 12px 20px 14px; border-bottom: 1px solid var(--border); }
+.project-search-zone { background: #fff; padding: 14px 20px 18px; border-bottom: 1px solid var(--border); }
 .search-box,.filter-pill,.lang-pill,.project-meta,.meta-inline { display: flex; align-items: center; }
 .search-box { min-height: 40px; padding: 0 14px; border-radius: 13px; background: var(--bg); border: 1.5px solid var(--border); gap: 8px; box-shadow: 0 2px 8px rgba(180,120,100,0.05); }
-.search-trigger { justify-content: flex-start; width: 100%; margin-bottom: 10px; }
+.search-trigger { justify-content: flex-start; width: 100%; margin-bottom: 16px; }
 .search-trigger__text { color: var(--text4); font-size: 13px; }
-.filter-scroll { white-space: nowrap; margin-bottom: 8px; }
+.filter-scroll { white-space: nowrap; margin-bottom: 14px; }
 .filter-pill { display: inline-flex; margin-right: 8px; padding: 7px 12px; border-radius: 999px; color: var(--text3); background: #fff8f1; border: 1px solid var(--border); font-size: 12px; }
 .filter-pill.active { color: #fff; background: linear-gradient(135deg, #e8866a 0%, #e8a5b4 100%); border-color: transparent; }
 .project-sort {
@@ -407,7 +407,7 @@ onShow(async () => {
   align-items: flex-end;
   justify-content: center;
   gap: 44px;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .project-sort button {

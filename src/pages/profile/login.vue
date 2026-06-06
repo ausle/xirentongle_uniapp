@@ -74,6 +74,7 @@ import {
 const nickname = ref(getStoredNickname())
 const agreed = ref(true)
 const loginState = ref<'idle' | 'loading' | 'done'>('idle')
+const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0
 
 const loginBenefits = [
   { emoji: '🔖', title: '收藏同步', bg: T.accentLight },
@@ -91,6 +92,7 @@ const themeVars = computed(() => ({
   '--accent': T.accent,
   '--accent-pink': T.accentPink,
   '--surface': T.surface,
+  '--safe-top': `${statusBarHeight}px`,
 }))
 
 let loginTimerOne: ReturnType<typeof setTimeout> | null = null
@@ -167,6 +169,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   padding: 0 16px;
+  padding-top: var(--safe-top);
   height: 44px;
 }
 
@@ -194,7 +197,7 @@ onUnmounted(() => {
 .login-shell {
   position: relative;
   z-index: 1;
-  min-height: calc(100vh - 44px);
+  min-height: calc(100vh - 44px - var(--safe-top));
   padding: 78px 28px 36px;
   display: flex;
   flex-direction: column;

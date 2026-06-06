@@ -27,6 +27,7 @@ import { T } from '../../utils/theme'
 const title = ref('功能页面')
 const emoji = ref('✨')
 const desc = ref('这是一个独立的新页面。')
+const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0
 
 const themeVars = computed(() => ({
   '--bg': T.bg,
@@ -35,6 +36,7 @@ const themeVars = computed(() => ({
   '--text3': T.text3,
   '--text4': T.text4,
   '--accent': T.accent,
+  '--safe-top': `${statusBarHeight}px`,
 }))
 
 onLoad((options) => {
@@ -58,6 +60,7 @@ function goBack() {
   display: flex;
   align-items: center;
   padding: 0 16px;
+  padding-top: var(--safe-top);
   height: 44px;
   background: #fff;
   border-bottom: 1px solid var(--border);
@@ -83,7 +86,7 @@ function goBack() {
 }
 
 .feature-wrap {
-  min-height: calc(100vh - 44px);
+  min-height: calc(100vh - 44px - var(--safe-top));
   padding: 24px 16px;
 }
 
