@@ -5,9 +5,20 @@
       <text class="page-title serif">分类文章</text>
     </view>
 
-    <scroll-view scroll-y class="scroll-page">
+    <scroll-view
+      scroll-y
+      class="scroll-page"
+      refresher-enabled
+      :refresher-triggered="articleRefreshing"
+      lower-threshold="120"
+      @scroll="handleArticleListScroll"
+      @refresherrefresh="handleArticleRefresh"
+      @refresherrestore="articleRefreshing = false"
+      @refresherabort="articleRefreshing = false"
+      @scrolltolower="handleScrollToLower"
+    >
       <view class="project-search-zone">
-        <button class="search-box search-trigger" @tap="openArticleSearch">
+        <button class="search-box search-trigger" @tap.stop="openArticleSearch">
           <AppIcon name="search" :size="14" :color="T.text4" />
           <text class="search-trigger__text">搜索文章、作者</text>
         </button>
@@ -18,18 +29,18 @@
             :key="category.key"
             class="filter-pill"
             :class="{ active: activeCategoryKey === category.key }"
-            @tap="selectCategory(category.key)"
+            @tap.stop="selectCategory(category.key)"
           >
             {{ category.label }}
           </button>
         </scroll-view>
 
         <view class="project-sort">
-          <button :class="{ active: activeProjectSort === 'newest' }" @tap="selectSort('newest')">
+          <button :class="{ active: activeProjectSort === 'newest' }" @tap.stop="selectSort('newest')">
             <text>最新</text>
             <view class="project-sort-indicator" />
           </button>
-          <button :class="{ active: activeProjectSort === 'hottest' }" @tap="selectSort('hottest')">
+          <button :class="{ active: activeProjectSort === 'hottest' }" @tap.stop="selectSort('hottest')">
             <text>最热</text>
             <view class="project-sort-indicator" />
           </button>
@@ -55,43 +66,42 @@
           <text class="empty-desc">试试切换分类或稍后再试。</text>
         </view>
 
-        <view v-for="article in articles" :key="article.id" class="project-card" @tap="openArticle(article)">
-          <view class="project-cover">
-            <image class="fill-img" :src="article.cover" mode="aspectFill" />
-            <view class="project-grad" />
-            <view class="star-badge">
-              <AppIcon name="eye" :size="11" color="#6B5757" />
-              <text>{{ fmtCompact(article.views) }}</text>
+        <view v-else class="article-grid">
+          <view v-for="article in articles" :key="article.id" class="project-card" @tap="openArticle(article)">
+            <view class="project-cover">
+              <image class="fill-img fill-img--base" :src="DEFAULT_ARTICLE_COVER" mode="aspectFit" />
+              <image
+                v-if="!isDefaultArticleCover(article.cover) && !isProjectArticleCoverFailed(article.id)"
+                class="fill-img fill-img--remote"
+                :src="article.cover"
+                mode="aspectFill"
+                @error="handleProjectArticleCoverError(article.id)"
+              />
             </view>
-            <view class="project-cover-copy">
-              <text class="project-name serif">{{ article.title }}</text>
-              <text class="project-tagline">{{ article.categoryName }}</text>
-            </view>
-          </view>
 
-          <view class="project-body">
-            <text class="line-2 project-desc">{{ article.summary }}</text>
-            <view class="tag-row">
-              <text class="hash-tag">#{{ article.categoryName }}</text>
-              <text class="hash-tag">#{{ article.date }}</text>
-            </view>
-            <view class="project-meta">
-              <image class="avatar-xs" :src="article.authorAvatar" mode="aspectFill" />
-              <text>{{ article.authorName }}</text>
-              <view
-                class="lang-pill"
-                :style="{
-                  color: article.accentColor,
-                  background: `${article.accentColor}18`,
-                  borderColor: `${article.accentColor}30`,
-                }"
-              >
-                <view class="lang-dot" :style="{ background: article.accentColor }" />
-                <text>{{ article.readTime }} min</text>
+            <view class="project-body">
+              <text class="line-2 project-name serif">{{ article.title }}</text>
+              <text class="line-2 project-desc">{{ article.summary }}</text>
+              <view class="tag-row">
+                <text
+                  v-for="tag in getDisplayTags(article)"
+                  :key="`${article.id}-${tag}`"
+                  class="hash-tag"
+                >
+                  #{{ tag }}
+                </text>
               </view>
-              <view class="meta-inline">
-                <AppIcon name="heart" :size="10" :color="T.accentPink" filled />
-                <text>{{ fmtCompact(article.likes) }}</text>
+              <view class="project-meta">
+                <image class="avatar-xs" :src="article.authorAvatar" mode="aspectFill" />
+                <text class="project-author">{{ article.authorName }}</text>
+                <view class="meta-inline">
+                  <AppIcon name="eye" :size="10" :color="T.text4" />
+                  <text>{{ fmtCompact(article.views) }} 阅读</text>
+                </view>
+                <view class="meta-inline">
+                  <AppIcon name="heart" :size="10" :color="T.accentPink" filled />
+                  <text>{{ fmtCompact(article.likes) }} 喜欢</text>
+                </view>
               </view>
             </view>
           </view>
@@ -99,6 +109,12 @@
 
         <view v-if="articleError && articles.length" class="footer-note">
           <text>{{ articleError }}</text>
+        </view>
+
+        <view v-if="articles.length" class="load-more-state">
+          <text v-if="articleLoadingMore">正在加载更多文章...</text>
+          <text v-else-if="!articleHasMore">没有更多文章了</text>
+          <text v-else>下拉可刷新，继续上滑可加载更多</text>
         </view>
 
         <view class="bottom-gap" />
@@ -119,7 +135,6 @@ import {
 } from '../../api/index'
 import { fmtCompact } from '../../utils/author-profile'
 import { T } from '../../utils/theme'
-import { categories as mockCategories } from '../../mock/data'
 
 type ProjectSort = 'newest' | 'hottest'
 
@@ -141,13 +156,15 @@ interface DisplayArticle {
   readTime: number
   views: number
   likes: number
+  tags: string[]
   content: string[]
-  accentColor: string
 }
 
 const ARTICLE_DETAIL_CACHE_PREFIX = 'chance_article_detail_'
-const FALLBACK_COVER = 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=800&auto=format'
 const FALLBACK_AVATAR = 'https://images.unsplash.com/photo-1629740936456-4b990c27e503?w=100&auto=format'
+const DEFAULT_ARTICLE_COVER = '/static/article-default.png'
+const ARTICLE_TAP_GUARD_MS = 180
+const ARTICLE_ACTION_GUARD_MS = 320
 const PAGE_SIZE = 20
 
 const activeCategoryKey = ref('all')
@@ -155,15 +172,16 @@ const activeProjectSort = ref<ProjectSort>('newest')
 const articleCategories = ref<ArticleCategoryDto[]>([])
 const articles = ref<DisplayArticle[]>([])
 const articleLoading = ref(false)
+const articleRefreshing = ref(false)
+const articleLoadingMore = ref(false)
+const articleHasMore = ref(true)
+const articlePage = ref(1)
 const articleError = ref('')
 const articleCategoryLoading = ref(false)
+const articleCoverErrorMap = ref<Record<string, boolean>>({})
 
 let articleRequestId = 0
-
-const mockCategoryPalette = mockCategories.map((category) => ({
-  normalizedName: normalize(category.name),
-  accentColor: category.accent,
-}))
+let articleScrollGuardUntil = 0
 
 const themeVars = computed(() => ({
   '--bg': T.bg,
@@ -199,17 +217,6 @@ function normalize(value?: string) {
 function isTotalCategoryName(value?: string) {
   const normalizedValue = normalize(value)
   return normalizedValue === '' || normalizedValue === 'all' || normalizedValue === '全部'
-}
-
-function resolveAccentColor(categoryName?: string) {
-  const normalizedName = normalize(categoryName)
-  const matchedPalette = mockCategoryPalette.find(
-    (category) =>
-      category.normalizedName === normalizedName ||
-      category.normalizedName.includes(normalizedName) ||
-      normalizedName.includes(category.normalizedName),
-  )
-  return matchedPalette?.accentColor ?? T.accent
 }
 
 function formatDate(timestamp?: number) {
@@ -249,22 +256,32 @@ function splitContent(content?: string, summary?: string) {
   return ['暂无内容']
 }
 
+function resolveTags(tags?: { tag?: string }[]) {
+  if (!Array.isArray(tags)) {
+    return []
+  }
+
+  return tags
+    .map((item) => (typeof item?.tag === 'string' ? item.tag.trim() : ''))
+    .filter(Boolean)
+}
+
 function mapArticle(article: ArticleItemDto): DisplayArticle {
   const categoryName = article.category?.category || '未分类'
   return {
     id: String(article.articleId),
     title: article.title?.trim() || '未命名文章',
     summary: article.summary?.trim() || '暂无摘要',
-    cover: article.cover?.trim() || FALLBACK_COVER,
+    cover: article.cover?.trim() || DEFAULT_ARTICLE_COVER,
     authorName: article.authorName?.trim() || '佚名',
     authorAvatar: article.authorAvatar?.trim() || FALLBACK_AVATAR,
     categoryName,
     date: formatDate(article.createTime || article.lastUpdateTime),
     readTime: estimateReadTime(article.content, article.summary),
-    views: article.count?.readCount ?? 0,
-    likes: article.count?.praiseCount ?? 0,
+    views: Number(article.count?.readCount ?? 0),
+    likes: Number(article.count?.praiseCount ?? 0),
+    tags: resolveTags(article.tags),
     content: splitContent(article.content, article.summary),
-    accentColor: resolveAccentColor(categoryName),
   }
 }
 
@@ -283,14 +300,61 @@ function cacheArticle(article: DisplayArticle) {
   })
 }
 
+function handleProjectArticleCoverError(articleId: string) {
+  if (articleCoverErrorMap.value[articleId]) {
+    return
+  }
+
+  articleCoverErrorMap.value = {
+    ...articleCoverErrorMap.value,
+    [articleId]: true,
+  }
+}
+
+function isDefaultArticleCover(cover?: string) {
+  return (cover || '').trim() === DEFAULT_ARTICLE_COVER
+}
+
+function isProjectArticleCoverFailed(articleId: string) {
+  return Boolean(articleCoverErrorMap.value[articleId])
+}
+
+function getDisplayTags(article: DisplayArticle) {
+  if (article.tags.length > 0) {
+    return article.tags.slice(0, 2)
+  }
+
+  return article.categoryName ? [article.categoryName] : ['文章']
+}
+
+function mergeArticlePages(current: DisplayArticle[], incoming: DisplayArticle[]) {
+  const merged = new Map<string, DisplayArticle>()
+  current.forEach((article) => merged.set(article.id, article))
+  incoming.forEach((article) => merged.set(article.id, article))
+  return [...merged.values()]
+}
+
 function openArticle(article: DisplayArticle) {
+  if (Date.now() < articleScrollGuardUntil || articleRefreshing.value || articleLoading.value || articleLoadingMore.value) {
+    return
+  }
+
   cacheArticle(article)
   uni.navigateTo({
     url: `/pages/article/detail?id=${encodeURIComponent(article.id)}`,
   })
 }
 
+function handleArticleListScroll() {
+  articleScrollGuardUntil = Date.now() + ARTICLE_TAP_GUARD_MS
+}
+
+function guardArticleTapAfterAction() {
+  articleScrollGuardUntil = Date.now() + ARTICLE_ACTION_GUARD_MS
+}
+
 function openArticleSearch() {
+  guardArticleTapAfterAction()
   uni.navigateTo({
     url: '/pages/article/search',
   })
@@ -330,15 +394,28 @@ async function loadArticleCategories() {
   }
 }
 
-async function loadArticles() {
+async function loadArticles(options?: { reset?: boolean }) {
+  const reset = options?.reset ?? false
+  const targetPage = reset ? 1 : articlePage.value + 1
   const requestId = ++articleRequestId
-  articleLoading.value = true
-  articleError.value = ''
+
+  if (reset) {
+    articleLoading.value = true
+    articleLoadingMore.value = false
+    articleError.value = ''
+    articleCoverErrorMap.value = {}
+  } else {
+    if (articleLoading.value || articleLoadingMore.value || !articleHasMore.value) {
+      return
+    }
+    articleLoadingMore.value = true
+    articleError.value = ''
+  }
 
   try {
     const data = await fetchArticlesByCategory({
       category: currentCategoryName.value || undefined,
-      page: 1,
+      page: targetPage,
       size: PAGE_SIZE,
       sort: activeProjectSort.value === 'newest' ? 'latest' : 'hot',
     })
@@ -347,7 +424,10 @@ async function loadArticles() {
       return
     }
 
-    articles.value = (data.articles?.list ?? []).map(mapArticle)
+    const nextArticles = (data.articles?.list ?? []).map(mapArticle)
+    articles.value = reset ? nextArticles : mergeArticlePages(articles.value, nextArticles)
+    articlePage.value = targetPage
+    articleHasMore.value = data.articles?.hasMore ?? nextArticles.length >= PAGE_SIZE
     articles.value.forEach(cacheArticle)
   } catch (error) {
     console.error('Failed to load category articles on projects page', error)
@@ -355,13 +435,28 @@ async function loadArticles() {
       return
     }
 
-    articles.value = []
+    if (reset) {
+      articles.value = []
+      articleHasMore.value = false
+      articlePage.value = 1
+    }
     articleError.value = error instanceof Error ? error.message : '文章接口请求失败'
   } finally {
     if (requestId === articleRequestId) {
       articleLoading.value = false
+      articleRefreshing.value = false
+      articleLoadingMore.value = false
     }
   }
+}
+
+async function handleArticleRefresh() {
+  articleRefreshing.value = true
+  await loadArticles({ reset: true })
+}
+
+async function handleScrollToLower() {
+  await loadArticles({ reset: false })
 }
 
 async function selectCategory(categoryKey: string) {
@@ -369,8 +464,9 @@ async function selectCategory(categoryKey: string) {
     return
   }
 
+  guardArticleTapAfterAction()
   activeCategoryKey.value = categoryKey
-  await loadArticles()
+  await loadArticles({ reset: true })
 }
 
 async function selectSort(sort: ProjectSort) {
@@ -378,13 +474,14 @@ async function selectSort(sort: ProjectSort) {
     return
   }
 
+  guardArticleTapAfterAction()
   activeProjectSort.value = sort
-  await loadArticles()
+  await loadArticles({ reset: true })
 }
 
 onShow(async () => {
   await loadArticleCategories()
-  await loadArticles()
+  await loadArticles({ reset: true })
 })
 </script>
 
@@ -395,7 +492,7 @@ onShow(async () => {
 .page-title { color: var(--text1); font-size: 26px; font-weight: 900; }
 .scroll-page { height: calc(100vh - 86px); }
 .project-search-zone { background: #fff; padding: 14px 20px 18px; border-bottom: 1px solid var(--border); }
-.search-box,.filter-pill,.lang-pill,.project-meta,.meta-inline { display: flex; align-items: center; }
+.search-box,.filter-pill,.project-meta,.meta-inline { display: flex; align-items: center; }
 .search-box { min-height: 40px; padding: 0 14px; border-radius: 13px; background: var(--bg); border: 1.5px solid var(--border); gap: 8px; box-shadow: 0 2px 8px rgba(180,120,100,0.05); }
 .search-trigger { justify-content: flex-start; width: 100%; margin-bottom: 16px; }
 .search-trigger__text { color: var(--text4); font-size: 13px; }
@@ -447,24 +544,96 @@ onShow(async () => {
 .empty-emoji { font-size: 38px; }
 .empty-title { color: var(--text2); font-size: 15px; font-weight: 700; margin-top: 12px; }
 .empty-desc { color: var(--text4); font-size: 12px; margin-top: 4px; line-height: 1.6; }
-.project-card { overflow: hidden; background: #fff; border-radius: 20px; box-shadow: 0 2px 20px rgba(180,120,100,0.09),0 0 0 1px var(--border); margin-bottom: 16px; }
-.project-cover { position: relative; height: 156px; overflow: hidden; }
+.article-grid { display: block; }
+.project-card {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 14px rgba(180,120,100,0.08),0 0 0 1px var(--border);
+  margin-bottom: 12px;
+  padding: 12px;
+}
+.project-cover {
+  width: 108px;
+  height: 84px;
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #f5eee8;
+}
 .fill-img { width: 100%; height: 100%; }
-.project-grad { position: absolute; inset: 0; background: linear-gradient(to top, rgba(61,44,44,0.8) 0%, rgba(61,44,44,0.15) 55%, transparent 100%); }
-.star-badge { position: absolute; top: 12px; right: 12px; padding: 4px 10px; border-radius: 999px; color: var(--text2); background: rgba(255,255,255,0.86); display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; }
-.project-cover-copy { position: absolute; left: 16px; right: 16px; bottom: 12px; color: rgba(255,255,255,0.85); }
-.project-name { color: #fff; font-size: 18px; font-weight: 800; }
-.project-tagline { color: rgba(255,255,255,0.8); font-size: 11px; margin-top: 2px; }
-.project-body { padding: 12px 16px 16px; }
-.project-desc { color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 12px; }
-.tag-row { display: flex; flex-wrap: wrap; gap: 8px; }
-.hash-tag { color: var(--accent); background: #fff0eb; border: 1px solid rgba(232,134,106,0.15); border-radius: 999px; padding: 3px 9px; font-size: 10px; font-weight: 600; }
-.project-meta { gap: 8px; color: var(--text4); font-size: 11px; margin-top: 12px; }
-.avatar-xs { width: 20px; height: 20px; border-radius: 50%; }
-.lang-pill { margin-left: auto; border: 1px solid; border-radius: 999px; padding: 3px 8px; font-size: 10px; font-weight: 700; }
-.lang-dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+.fill-img--base {
+  display: block;
+  background: linear-gradient(135deg, #fff6ee 0%, #f7ede5 100%);
+}
+.fill-img--remote {
+  position: absolute;
+  inset: 0;
+}
+.project-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.project-name {
+  color: var(--text1);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+.project-desc {
+  color: var(--text3);
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 6px;
+  min-height: 0;
+}
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.hash-tag {
+  color: var(--accent);
+  background: #fff0eb;
+  border: 1px solid rgba(232,134,106,0.15);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.project-meta {
+  width: 100%;
+  gap: 8px;
+  color: var(--text4);
+  font-size: 11px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.project-author {
+  min-width: 0;
+  max-width: 92px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.avatar-xs { width: 18px; height: 18px; border-radius: 50%; }
 .meta-inline { gap: 4px; }
 .footer-note { margin-top: 8px; text-align: center; color: var(--text4); font-size: 12px; }
+.load-more-state {
+  padding-top: 2px;
+  text-align: center;
+  color: var(--text4);
+  font-size: 12px;
+}
 .bottom-gap { height: 20px; }
 .line-2 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 </style>

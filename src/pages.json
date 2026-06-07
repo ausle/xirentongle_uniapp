@@ -107,25 +107,25 @@
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "文章",
+        "text": "\u9996\u9875",
         "iconPath": "static/tabbar/articles.png",
         "selectedIconPath": "static/tabbar/articles-active.png"
       },
       {
         "pagePath": "pages/projects/index",
-        "text": "项目",
+        "text": "\u6587\u7ae0",
         "iconPath": "static/tabbar/projects.png",
         "selectedIconPath": "static/tabbar/projects-active.png"
       },
       {
         "pagePath": "pages/entertainment/index",
-        "text": "娱乐",
+        "text": "\u5a31\u4e50",
         "iconPath": "static/tabbar/entertainment.png",
         "selectedIconPath": "static/tabbar/entertainment-active.png"
       },
       {
         "pagePath": "pages/profile/index",
-        "text": "我的",
+        "text": "\u6211\u7684",
         "iconPath": "static/tabbar/profile.png",
         "selectedIconPath": "static/tabbar/profile-active.png"
       }

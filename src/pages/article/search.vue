@@ -85,9 +85,14 @@
             class="article-card"
             @tap="openArticle(article.id)"
           >
-            <view class="article-cover">
-              <image class="fill-img" :src="article.cover" mode="aspectFill" />
-              <view class="card-grad" />
+            <view class="article-cover" :class="{ 'article-cover--fallback': isDefaultArticleCover(article.cover) }">
+              <image
+                :class="['fill-img', { 'fill-img--fallback': isDefaultArticleCover(article.cover) }]"
+                :src="article.cover || DEFAULT_ARTICLE_COVER"
+                :mode="isDefaultArticleCover(article.cover) ? 'widthFix' : 'aspectFill'"
+                @error="handleSearchArticleCoverError(article)"
+              />
+              <view class="card-grad" :class="{ 'card-grad--fallback': isDefaultArticleCover(article.cover) }" />
               <view
                 class="cat-badge card-cat"
                 :style="{
@@ -138,6 +143,7 @@ import { articles, categories, type Article } from '../../mock/data'
 import { T } from '../../utils/theme'
 
 const STORAGE_KEY = 'chance_article_search_recent'
+const DEFAULT_ARTICLE_COVER = '/static/article-default.png'
 const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0
 
 const query = ref('')
@@ -223,6 +229,18 @@ function clearQuery() {
 function clearRecentSearches() {
   recentSearches.value = []
   saveRecentSearches()
+}
+
+function handleSearchArticleCoverError(article: Article) {
+  if (article.cover === DEFAULT_ARTICLE_COVER) {
+    return
+  }
+
+  article.cover = DEFAULT_ARTICLE_COVER
+}
+
+function isDefaultArticleCover(cover?: string) {
+  return (cover || '').trim() === DEFAULT_ARTICLE_COVER
 }
 
 function openArticle(id: string) {
@@ -425,15 +443,29 @@ onLoad((options) => {
   overflow: hidden;
 }
 
+.article-cover--fallback {
+  height: auto;
+  background: linear-gradient(135deg, #fff6ee 0%, #f7ede5 100%);
+}
+
 .fill-img {
   width: 100%;
   height: 100%;
+}
+
+.fill-img--fallback {
+  display: block;
+  height: auto;
 }
 
 .card-grad {
   position: absolute;
   inset: 0;
   background: linear-gradient(to top, rgba(61, 44, 44, 0.8) 0%, rgba(61, 44, 44, 0.15) 55%, transparent 100%);
+}
+
+.card-grad--fallback {
+  background: linear-gradient(to top, rgba(61, 44, 44, 0.34) 0%, rgba(61, 44, 44, 0.05) 55%, transparent 100%);
 }
 
 .cat-badge,

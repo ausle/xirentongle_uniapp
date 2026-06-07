@@ -16,18 +16,13 @@
       :scroll-top="articleScrollTop"
       :scroll-into-view="articleScrollIntoView"
     >
-      <view class="detail-cover">
+      <view class="detail-cover" :class="{ 'detail-cover--fallback': isDefaultArticleCover(article.cover) }">
         <image
-          v-if="!coverImageFailed"
-          class="fill-img"
-          :src="article.cover || FALLBACK_COVER"
-          mode="aspectFill"
-          @error="handleCoverImageError"
+          :class="['fill-img', { 'fill-img--fallback': isDefaultArticleCover(article.cover) }]"
+          :src="article.cover || DEFAULT_ARTICLE_COVER"
+          :mode="isDefaultArticleCover(article.cover) ? 'widthFix' : 'aspectFill'"
+          @error="handleArticleCoverError"
         />
-        <view v-else class="detail-cover-fallback">
-          <AppIcon name="book-open" :size="34" :color="T.text3" />
-          <text class="detail-cover-fallback__text">Cover unavailable</text>
-        </view>
         <view class="fade-light" />
       </view>
 
@@ -67,10 +62,15 @@
             <AppIcon name="eye" :size="13" :color="T.text4" />
             <text>{{ fmtCompact(article.views) }} 阅读</text>
           </view>
-          <view class="meta-inline">
-            <AppIcon name="heart" :size="13" :color="T.accentPink" filled />
+          <button class="stat-like-btn" :class="{ active: articleLiked }" @tap="toggleArticleLike">
+            <AppIcon
+              name="heart"
+              :size="13"
+              :color="articleLiked ? T.accentPink : T.text4"
+              :filled="articleLiked"
+            />
             <text>{{ fmtCompact(articleLikes) }} 喜欢</text>
-          </view>
+          </button>
         </view>
 
         <view class="article-content">
@@ -156,53 +156,32 @@
           {{ articleDetailError }}
         </text>
 
-        <view class="action-row">
-          <button class="action-btn" :class="{ active: articleLiked }" @tap="toggleArticleLike">
-            <view class="action-icon">
-              <AppIcon
-                name="heart"
-                :size="22"
-                :color="articleLiked ? T.accentPink : T.text4"
-                :filled="articleLiked"
-              />
-            </view>
-            <text>{{ fmtCompact(articleLikes) }}</text>
-          </button>
-
-          <button class="action-btn" :class="{ saved: articleSaved }" @tap="articleSaved = !articleSaved">
-            <view class="action-icon">
-              <AppIcon
-                name="bookmark"
-                :size="22"
-                :color="articleSaved ? T.accent : T.text4"
-                :filled="articleSaved"
-              />
-            </view>
-            <text>收藏</text>
-          </button>
-
-          <button class="action-btn">
-            <view class="action-icon">
-              <AppIcon name="share-2" :size="22" :color="T.text4" />
-            </view>
-            <text>分享</text>
-          </button>
-        </view>
       </view>
     </scroll-view>
 
-    <button
-      v-if="displayTocItems.length"
-      class="float-toc"
-      :class="{ active: articleTocOpen }"
-      @tap="articleTocOpen = !articleTocOpen"
-    >
-      <AppIcon name="list" :size="18" :color="articleTocOpen ? '#fff' : T.text2" />
-    </button>
+    <view class="float-actions">
+      <button class="float-save" :class="{ active: articleSaved }" @tap="toggleArticleSave">
+        <AppIcon
+          name="bookmark"
+          :size="18"
+          :color="articleSaved ? '#fff' : T.accent"
+          :filled="articleSaved"
+        />
+      </button>
 
-    <button class="float-top" @tap="scrollArticleToTop">
-      <AppIcon name="chevrons-up" :size="19" :color="T.accent" />
-    </button>
+      <button
+        v-if="displayTocItems.length"
+        class="float-toc"
+        :class="{ active: articleTocOpen }"
+        @tap="articleTocOpen = !articleTocOpen"
+      >
+        <AppIcon name="list" :size="18" :color="articleTocOpen ? '#fff' : T.text2" />
+      </button>
+
+      <button class="float-top" @tap="scrollArticleToTop">
+        <AppIcon name="chevrons-up" :size="19" :color="T.accent" />
+      </button>
+    </view>
 
     <view v-if="articleTocOpen && displayTocItems.length" class="toc-mask" @tap="articleTocOpen = false">
       <view class="toc-sheet" @tap.stop="">
@@ -251,8 +230,8 @@ interface CachedDetailArticle extends DetailArticle {
 }
 
 const ARTICLE_DETAIL_CACHE_PREFIX = 'chance_article_detail_'
-const FALLBACK_COVER = 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=800&auto=format'
 const FALLBACK_AVATAR = 'https://images.unsplash.com/photo-1629740936456-4b990c27e503?w=100&auto=format'
+const DEFAULT_ARTICLE_COVER = '/static/article-default.png'
 const FALLBACK_CONTENT_IMAGE = '/static/logo.png'
 
 const defaultArticle = articles[0]
@@ -283,7 +262,6 @@ const articleTocOpen = ref(false)
 const articleTocItems = ref<ArticleTocItem[]>([])
 const articleScrollTop = ref(0)
 const articleScrollIntoView = ref('')
-const coverImageFailed = ref(false)
 const authorAvatarFailed = ref(false)
 const bodyImageErrorMap = ref<Record<number, boolean>>({})
 const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0
@@ -374,6 +352,10 @@ function toggleArticleLike() {
   articleLikes.value += articleLiked.value ? 1 : -1
 }
 
+function toggleArticleSave() {
+  articleSaved.value = !articleSaved.value
+}
+
 function hydrateFromCache(cachedArticle: CachedDetailArticle) {
   const renderedFromCacheHtml = cachedArticle.contentHtml ? renderArticleContent(cachedArticle.contentHtml) : null
 
@@ -430,7 +412,7 @@ function applyArticleDetail(detail: ArticleItemDto) {
   const nextArticle: DetailArticle = {
     id: String(detail.articleId),
     title: detail.title?.trim() || article.value.title || '未命名文章',
-    cover: detail.cover?.trim() || article.value.cover || FALLBACK_COVER,
+    cover: detail.cover?.trim() || article.value.cover || DEFAULT_ARTICLE_COVER,
     author: detail.authorName?.trim() || article.value.author || '佚名',
     authorAvatar: detail.authorAvatar?.trim() || article.value.authorAvatar || FALLBACK_AVATAR,
     date: formatArticleDate(detail.createTime || detail.lastUpdateTime),
@@ -457,13 +439,23 @@ function applyArticleDetail(detail: ArticleItemDto) {
 }
 
 function resetVisualFallbacks() {
-  coverImageFailed.value = false
   authorAvatarFailed.value = false
   bodyImageErrorMap.value = {}
 }
 
-function handleCoverImageError() {
-  coverImageFailed.value = true
+function handleArticleCoverError() {
+  if (article.value.cover === DEFAULT_ARTICLE_COVER) {
+    return
+  }
+
+  article.value = {
+    ...article.value,
+    cover: DEFAULT_ARTICLE_COVER,
+  }
+}
+
+function isDefaultArticleCover(cover?: string) {
+  return (cover || '').trim() === DEFAULT_ARTICLE_COVER
 }
 
 function handleAuthorAvatarError() {
@@ -684,9 +676,18 @@ function toNumber(value?: number | string | null) {
   background: linear-gradient(135deg, #fff6ee 0%, #f7ede5 100%);
 }
 
+.detail-cover--fallback {
+  height: auto;
+}
+
 .fill-img {
   width: 100%;
   height: 100%;
+}
+
+.fill-img--fallback {
+  display: block;
+  height: auto;
 }
 
 .detail-cover-fallback {
@@ -783,8 +784,7 @@ function toNumber(value?: number | string | null) {
 }
 
 .stat-row,
-.meta-inline,
-.action-row {
+.meta-inline {
   display: flex;
   align-items: center;
 }
@@ -798,6 +798,18 @@ function toNumber(value?: number | string | null) {
 
 .meta-inline {
   gap: 5px;
+}
+
+.stat-like-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text4);
+  font-size: 12px;
+}
+
+.stat-like-btn.active {
+  color: var(--accent-pink);
 }
 
 .article-content {
@@ -910,45 +922,20 @@ function toNumber(value?: number | string | null) {
   margin-top: 10px;
 }
 
-.action-row {
-  gap: 12px;
-  margin-top: 20px;
-}
-
-.action-btn {
-  flex: 1;
-  padding: 12px 0;
-  border-radius: 18px;
-  background: #fff;
-  color: var(--text3);
-  font-size: 12px;
-  border: 1px solid var(--border);
+.float-actions {
+  position: fixed;
+  right: 16px;
+  bottom: 30px;
+  z-index: 20;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
 }
 
-.action-btn.active,
-.action-btn.saved {
-  color: var(--text1);
-  background: var(--surface2);
-}
-
-.action-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
-  background: var(--bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
+.float-save,
 .float-toc,
 .float-top {
-  position: fixed;
-  right: 16px;
   width: 46px;
   height: 46px;
   border-radius: 16px;
@@ -958,18 +945,29 @@ function toNumber(value?: number | string | null) {
   justify-content: center;
 }
 
-.float-toc {
-  bottom: 88px;
+.float-save {
   background: #fff;
+  border: 1px solid var(--border);
+}
+
+.float-save.active {
+  background: var(--accent-grad);
+  border-color: transparent;
+}
+
+.float-toc {
+  background: #fff;
+  border: 1px solid var(--border);
 }
 
 .float-toc.active {
   background: var(--accent-grad);
+  border-color: transparent;
 }
 
 .float-top {
-  bottom: 30px;
   background: #fff;
+  border: 1px solid var(--border);
 }
 
 .toc-mask {

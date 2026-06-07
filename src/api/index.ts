@@ -30,6 +30,11 @@ export interface ArticleDetailCategoryDto {
   category?: string
 }
 
+export interface ArticleTagDto {
+  tagId?: number
+  tag?: string
+}
+
 export interface ArticleItemDto {
   articleId: number
   author?: number
@@ -42,6 +47,7 @@ export interface ArticleItemDto {
   createTime?: number
   lastUpdateTime?: number
   category?: ArticleDetailCategoryDto
+  tags?: ArticleTagDto[]
   count?: ArticleCountDto
 }
 

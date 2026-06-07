@@ -77,7 +77,12 @@
             class="author-article-row"
             @tap="$emit('open-article', article)"
           >
-            <image :src="article.cover" mode="aspectFill" />
+            <image
+              :class="{ 'author-article-cover--fallback': isDefaultArticleCover(resolveArticleCover(article.id, article.cover)) }"
+              :src="resolveArticleCover(article.id, article.cover)"
+              :mode="isDefaultArticleCover(resolveArticleCover(article.id, article.cover)) ? 'aspectFit' : 'aspectFill'"
+              @error="markArticleCoverError(article.id)"
+            />
             <view class="author-article-copy">
               <text class="line-2 author-article-title">{{ article.title }}</text>
               <text class="author-article-meta">
@@ -126,7 +131,12 @@
             class="author-article-row"
             @tap="$emit('open-article', article)"
           >
-            <image :src="article.cover" mode="aspectFill" />
+            <image
+              :class="{ 'author-article-cover--fallback': isDefaultArticleCover(resolveArticleCover(article.id, article.cover)) }"
+              :src="resolveArticleCover(article.id, article.cover)"
+              :mode="isDefaultArticleCover(resolveArticleCover(article.id, article.cover)) ? 'aspectFit' : 'aspectFill'"
+              @error="markArticleCoverError(article.id)"
+            />
             <view class="author-article-copy">
               <text class="line-2 author-article-title">{{ article.title }}</text>
               <text class="author-article-meta">⭐ 已收藏</text>
@@ -141,6 +151,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import AppIcon from './AppIcon.vue'
 import { fmtCompact, type AuthorProfileData } from '../utils/author-profile'
 import { T } from '../utils/theme'
@@ -166,7 +177,32 @@ const authorTabs = [
   { key: 'favorites' as const, label: '收藏', emoji: '⭐' },
 ]
 
+const DEFAULT_ARTICLE_COVER = '/static/article-default.png'
 const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0
+const articleCoverErrorMap = ref<Record<string, boolean>>({})
+
+function resolveArticleCover(articleId: string, cover?: string) {
+  if (articleCoverErrorMap.value[articleId]) {
+    return DEFAULT_ARTICLE_COVER
+  }
+
+  return cover?.trim() || DEFAULT_ARTICLE_COVER
+}
+
+function markArticleCoverError(articleId: string) {
+  if (articleCoverErrorMap.value[articleId]) {
+    return
+  }
+
+  articleCoverErrorMap.value = {
+    ...articleCoverErrorMap.value,
+    [articleId]: true,
+  }
+}
+
+function isDefaultArticleCover(cover?: string) {
+  return (cover || '').trim() === DEFAULT_ARTICLE_COVER
+}
 </script>
 
 <style scoped>
@@ -408,6 +444,11 @@ const statusBarHeight = uni.getSystemInfoSync().statusBarHeight ?? 0
   height: 58px;
   border-radius: 11px;
   flex-shrink: 0;
+}
+
+.author-article-row .author-article-cover--fallback {
+  background: linear-gradient(135deg, #fff6ee 0%, #f7ede5 100%);
+  padding: 2px;
 }
 
 .author-article-copy {
